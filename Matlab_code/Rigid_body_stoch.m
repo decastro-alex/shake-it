@@ -3,12 +3,12 @@
 
 clear; close all; 
 
-J = eye(3); J(1,1) = 1; J(2,2) = 2.8; J(3,3) = 2;                           %Inertia tensor
+J = eye(3); J(1,1) = 3; J(2,2) = 2; J(3,3) = 1.5;                           %Inertia tensor
 Jinv = inv(J);                                                              %Inverse of inertia tensor
 Omega0 = [0.5;-0.5; 0.4];                                                   %Initial \Omega
 R0 = eye(3);                                                                %Initial R
 R = R0;
-h = 0.0001;                                                                    %Time step
+h = 0.01;                                                                   %Time step
 T_end = 100;
 t = 0:h:T_end;
 
@@ -19,13 +19,11 @@ Pi_t = zeros(3, N);                                                         %Arr
 Fk = zeros(3,3);                                                            %F_k = R_k^T \dot{R}_k
 M = [0;0;0];                                                                %M is a force 
 
-sigma1 = [0.05; 0.1;0.03];
-%sigma1 = 0.5*Pi_k;
+sigma1 = [0.8; 0.2; 0.2];
 sigma = sigma1*sigma1';                                                     %Variance
-dW = (1/sqrt(h))*randn(3,3)*sigma1;                                          %Wiener process
-
+dW = (1/sqrt(h))*sigma*randn(3,1);                                          %Wiener process
 err = zeros(2, N);                                                          %Array to record errors at each time step
-M = 0.5*cross(sigma1,cross(sigma1, Pi_k)) + cross(dW, Pi_k);
+M = cross(dW, Pi_k);
 tic 
  
                                
@@ -35,11 +33,12 @@ for i=1:N
      M_old = M;
      Fk = RodSolve(h,J, Pi_k, M);                                           %Solve implicit equation using Rodrigues' formula(eqn 25)
      R = R*Fk;                                                              %R_{k+1} = R_k F_k
-     dW = (1/sqrt(h))*randn(3,3)*sigma1;
-     M = 0.5*cross(sigma1,cross(sigma1, Pi_k)) + cross(dW, Pi_k);                                                   %Update the force M_{k+1}
+     dW = (1/sqrt(h))*sigma*randn(3,1);  
+     M = cross(dW, Pi_k);                                                   %Update the force M_{k+1}
      Pi_k = (Fk')*Pi_k + (h/2)*(Fk')*M_old + (h/2)*M;                       %(eqn 24) \Pi_{k+1} = F_k^T \Pi_k + \frac{h}{2} F_k^T M_k + \frac{h}{2}M_{k+1}
 
-     Pi_t(:,i) = Pi_k;   Omega = Jinv*Pi_k;
+     Pi_t(:,i) = Pi_k;
+     Omega = Jinv*Pi_k;
      err(2, i) = norm( Pi_k'*cross(Omega, Pi_k));
      err(1,i)  = norm(eye(3) - R*R');                                       %\| I - RR^T \|_2
      
@@ -59,10 +58,5 @@ xlabel('Time')
 
 figure
 plot(t, err(2,:))
-title('Lie Group Integrator Error Casimir Error')
-xlabel('Time')
-
-figure
-plot(t, err(1,:))
 title('Lie Group Integrator Error | I - R*R^T |')
 xlabel('Time')
